@@ -1,0 +1,216 @@
+// ============================================
+// CONSULTAS BÁSICAS
+// ============================================
+db.pasajeros.find();
+
+db.vuelos.find({ "ruta.codigo": " Bar-Buc" });
+
+db.vuelos.updateOne(
+  { codigo_vuelo: "AV100" },
+  { $set: { estado: "Finalizado" } }
+);
+
+db.pasajeros.deleteOne({ documento: " 1073673471" });
+
+db.pasajeros.insertOne({
+  documento: "1012458796",
+  nombre: "Carlos Ramírez",
+  email: "carlos@mail.com",
+  fecha_registro: new Date(),
+  nacionalidad: "Colombiana"
+});
+
+db.vuelos.find(
+  { estado: "Programado" },
+  { codigo_vuelo: 1, fecha_salida: 1, "ruta.origen": 1, _id: 0 }
+);
+
+db.boletos.findOne({ numero_boleto: "TKT-10021" });
+
+db.boletos.updateOne(
+  { numero_boleto: "TKT-10021" },
+  { $set: { estado: "Cancelado" } }
+);
+
+db.pagos.deleteOne({ id_boleto: "TKT-10021" });
+
+
+// ============================================
+// CONSULTAS FILTROS Y OPERADORES
+// ============================================
+
+db.boletos.find({ valor: { $gt: 300000 } });
+
+db.vuelos.find({
+  fecha_salida: { $gte: new Date("2025-02-01"), $lte: new Date("2025-02-28") }
+});
+
+db.pasajeros.find({
+  nacionalidad: "Colombiana",
+  fecha_registro: { $gt: new Date("2025-01-10") }
+});
+
+db.boletos.find({ valor: { $gt: 500000 } });
+
+db.pagos.find({
+  metodo_pago: { $in: ["Tarjeta Crédito", "Transferencia"] }
+});
+
+db.vuelos.find({
+  $and: [
+    { estado: "Programado" },
+    { "ruta.origen": "Bogotá" }
+  ]
+});
+
+db.pasajeros.find({
+  nombre: { $regex: /Ramírez/i }
+});
+
+db.pagos.find({
+  banco: { $exists: true, $ne: null }
+});
+
+// ============================================
+// CONSULTAS AGREGACION
+// ============================================
+
+db.boletos.aggregate([
+  { $group: { _id: null, promedio_valor: { $avg: "$valor" } } }
+]);
+
+db.boletos.aggregate([
+  { $lookup: { from: "vuelos", localField: "codigo_vuelo", foreignField: "codigo_vuelo", as: "info_vuelo" } },
+  { $unwind: "$info_vuelo" },
+  { $group: { _id: "$info_vuelo.ruta.codigo", total_recaudo: { $sum: "$valor" } } }
+]);
+
+db.vuelos.aggregate([
+  { $group: { _id: "$estado", cantidad: { $count: {} } } }
+]);
+
+db.pasajeros.aggregate([
+  { $group: { _id: "$nacionalidad", total: { $sum: 1 } } }
+]);
+
+db.boletos.aggregate([
+  { $group: { _id: "$codigo_vuelo", total_recaudo: { $sum: "$valor" } } }
+]);
+
+db.boletos.aggregate([
+  {
+    $lookup: {
+      from: "pagos",
+      localField: "numero_boleto",
+      foreignField: "id_boleto",
+      as: "detalle_pago"
+    }
+  }
+]);
+
+db.vuelos.aggregate([
+  { $unwind: "$tripulacion" },
+  { $group: { _id: "$tripulacion.cargo", total: { $sum: 1 } } }
+]);
+
+db.boletos.aggregate([
+  {
+    $bucket: {
+      groupBy: "$valor",
+      boundaries: [200000, 300000, 400000, 500000, 600000],
+      default: "FueraDeRango",
+      output: { cantidad: { $sum: 1 } }
+    }
+  }
+]);
+
+{ $match: { estado: "Programado" } };
+
+{ $sort: { fecha_salida: 1 } };
+
+{ $limit: 5 };
+
+{
+  $addFields: {
+    duracion_minutos: {
+      $divide: [
+        { $subtract: ["$fecha_llegada", "$fecha_salida"] },
+        60000
+      ]
+    }
+  }
+};
+
+db.boletos.aggregate([
+  {
+    $group: {
+      _id: "$codigo_vuelo",
+      total_boletos: { $sum: 1 },
+      promedio_valor: { $avg: "$valor" }
+    }
+  },
+  { $sort: { total_boletos: -1 } }
+]);
+
+db.boletos.aggregate([
+  {
+    $group: {
+      _id: null,
+      total_ingresos: { $sum: "$valor" },
+      precio_promedio: { $avg: "$valor" },
+      total_boletos: { $sum: 1 }
+    }
+  }
+]);
+
+db.boletos.aggregate([
+  {
+    $group: {
+      _id: "$codigo_vuelo",
+      precio_maximo: { $max: "$valor" },
+      precio_minimo: { $min: "$valor" },
+      precio_promedio: { $avg: "$valor" },
+      boletos_vendidos: { $sum: 1 }
+    }
+  },
+  { $sort: { precio_promedio: -1 } }
+]);
+
+db.vuelos.aggregate([
+  {
+    $group: {
+      _id: { origen: "$ruta.origen", destino: "$ruta.destino" },
+      total_vuelos: { $sum: 1 },
+      total_pasajeros: { $sum: "$pasajeros_estimados" },
+      precio_promedio: { $avg: "$tarifa_promedio" }
+    }
+  },
+  { $sort: { total_vuelos: -1 } }
+]);
+
+db.boletos.aggregate([
+  {
+    $group: {
+      _id: "$codigo_vuelo",
+      total_boletos: { $sum: 1 },
+      valor_promedio: { $avg: "$valor" }
+    }
+  },
+  { $sort: { total_boletos: -1 } },
+  { $limit: 5 }
+]);
+
+db.pagos.aggregate([
+  {
+    $group: {
+      _id: "$metodo_pago",
+      promedio_pago: { $avg: "$valor_pagado" },
+      total_transacciones: { $sum: 1 }
+    }
+  },
+  { $sort: { promedio_pago: -1 } }
+]);
+
+
+
+
